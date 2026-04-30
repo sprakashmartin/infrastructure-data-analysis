@@ -25,11 +25,16 @@ To evaluate long-term systemic viability, the analysis compares current infrastr
 
 By normalizing all four variables—Access Density, Quality of Service, Innovation Velocity, and Tax-Adjusted Affordability—into a 0-100 scale, we can calculate a **Cumulative Success Index**. 
 
-The final output mathematically demonstrates that extreme deregulation (Chile) results in the lowest overall systemic success, freezing infrastructure in place with zero relative growth. State-directed and heavily subsidized models guarantee massive innovation and baseline expansion, albeit with varying tradeoffs in systemic tax burden.
+### Density-Adjusted Cumulative Success Index
+To evaluate long-term systemic viability, the model normalizes four variables into a 0-100 scale: Access Density, Quality of Service (Stock), Innovation Velocity (Flow), and Tax-Adjusted Affordability. 
 
-| Rank | Model | ISO | Cumulative Score | Speed (Stock) | Innovation (Flow) | Access Density | True Affordability |
+Crucially, the Access metric controls for **Omitted Variable Bias** by dividing raw infrastructure efficiency by the logarithm of national population density. This penalizes geographically dense nations (like the UK) that fail to capitalize on their "easy" terrain, and rewards sparse nations for overcoming geographic hurdles.
+
+The final output mathematically demonstrates that extreme deregulation (Chile) results in the lowest overall systemic success, even when controlling for challenging geography. 
+
+| Rank | Model | ISO | Cumulative Score | Speed (Stock) | Innovation (Flow) | Density-Adjusted Access | True Affordability |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1** | Privatized (Subsidized) | USA | **60.2** | 100 | 41.6 | 19.5 | 79.8 |
+| **1** | Privatized (Subsidized) | USA | **58.9** | 100 | 41.6 | 14.3 | 79.8 |
 | **2** | State-Owned Benchmark | CHN | **50.0** | 0 | 100 | 100 | 0 |
-| **3** | Hybrid Model | GBR | **44.1** | 55.4 | 17.4 | 3.68 | 100 |
+| **3** | Hybrid Model | GBR | **43.5** | 55.4 | 17.4 | 1.11 | 100 |
 | **4** | Free-Market Benchmark | CHL | **26.8** | 22.2 | 0 | 0 | 84.9 |
