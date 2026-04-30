@@ -137,3 +137,89 @@ ggplot(plot_data, aes(x = reorder(model_label, innovation_velocity), y = innovat
   expand_limits(y = 65) 
 
 ggsave("Innovation_Velocity_Chart.png", width = 10, height = 6, dpi = 300)
+
+library(tidyr)
+
+# 1. Calculate Accessibility Growth (2020 vs 2024)
+accessibility_trends <- infra_raw %>%
+  filter(data_year %in% c(2020, 2024)) %>%
+  select(entity_iso, data_year, data_value) %>%
+  # THE FIX: Added 'values_fn = max' to handle the duplicate rows safely
+  pivot_wider(names_from = data_year, values_from = data_value, names_prefix = "year_", values_fn = max) %>%
+  mutate(
+    current_access = as.numeric(year_2024),
+    access_growth_pct = ((as.numeric(year_2024) - as.numeric(year_2020)) / as.numeric(year_2020)) * 100
+  ) %>%
+  drop_na(access_growth_pct)
+
+# 2. Build the "Grand Unified" Index Dataset (CORRECTED)
+cumulative_index_data <- clean_telecom_adv %>%
+  # 1. Filter using the 3-letter codes from the World Bank data
+  filter(iso_code %in% c("USA", "GBR", "CHL", "CHN")) %>% 
+  
+  # 2. Create a translation key to match Google's 2-letter format
+  mutate(google_iso = case_when(
+    iso_code == "USA" ~ "US",
+    iso_code == "GBR" ~ "GB",
+    iso_code == "CHL" ~ "CL",
+    iso_code == "CHN" ~ "CN"
+  )) %>%
+  
+  # 3. Join the Google BigQuery Data using our new translation key
+  left_join(innovation_velocity_data, by = c("google_iso" = "iso_code")) %>%
+  
+  # 4. Join the World Bank Accessibility Trends using the standard 3-letter code
+  left_join(accessibility_trends, by = c("iso_code" = "entity_iso")) %>%
+  
+  select(
+    iso_code, market_model,
+    current_speed = final_speed, speed_growth = innovation_velocity,
+    current_access, access_growth = access_growth_pct,
+    total_burden
+  )
+
+# 3. Scatterplot: Current Status vs. Growth Trajectory
+ggplot(cumulative_index_data, aes(x = current_speed, y = speed_growth, fill = iso_code)) +
+  # We use a slight 'jitter' or size adjustment to make it look highly academic
+  geom_point(shape = 21, size = 7, color = "black", stroke = 1.2, alpha = 0.9) +
+  geom_text(aes(label = iso_code), vjust = -1.5, fontface = "bold", size = 5) +
+  
+  # Add dashed lines representing the mathematical averages to create 4 quadrants
+  geom_hline(yintercept = mean(cumulative_index_data$speed_growth), linetype = "dashed", color = "gray50") +
+  geom_vline(xintercept = mean(cumulative_index_data$current_speed), linetype = "dashed", color = "gray50") +
+  
+  scale_fill_manual(values = c("CN" = "#d73027", "US" = "#4575b4", "GB" = "#74add1", "CL" = "#fdae61")) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none", panel.grid.minor = element_blank()) +
+  labs(
+    title = "Infrastructure Dynamics: Stock vs. Flow",
+    subtitle = "Current Network Capability vs. Rate of Technological Innovation",
+    x = "Stock: Current Absolute Speed (Mbps)",
+    y = "Flow: Innovation Velocity / Growth (%)"
+  ) +
+  # Expand limits so the text labels don't get cut off
+  expand_limits(y = max(cumulative_index_data$speed_growth) + 5)
+
+# Save the plot
+ggsave("Stock_vs_Flow_Scatterplot.png", width = 9, height = 6, dpi = 300)
+
+# 4. The Telecommunications Cumulative Success Index
+composite_index <- cumulative_index_data %>%
+  mutate(
+    # Normalize variables: (Value - Min) / (Max - Min) * 100
+    score_speed = (current_speed - min(current_speed)) / (max(current_speed) - min(current_speed)) * 100,
+    score_innovation = (speed_growth - min(speed_growth)) / (max(speed_growth) - min(speed_growth)) * 100,
+    score_access = (current_access - min(current_access)) / (max(current_access) - min(current_access)) * 100,
+    
+    # Invert the Economic Burden: (Max - Value) / (Max - Min) * 100
+    score_affordability = (max(total_burden) - total_burden) / (max(total_burden) - min(total_burden)) * 100,
+    
+    # Calculate the unweighted Cumulative Score
+    cumulative_score = (score_speed + score_innovation + score_access + score_affordability) / 4
+  ) %>%
+  arrange(desc(cumulative_score)) %>%
+  # Select only the relevant scores for the final table
+  select(iso_code, cumulative_score, score_speed, score_innovation, score_access, score_affordability)
+
+# Print the final index
+print(composite_index)
