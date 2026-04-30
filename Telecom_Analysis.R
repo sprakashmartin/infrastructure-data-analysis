@@ -1,0 +1,139 @@
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(bigrquery)
+
+# 1. Load Macro Data
+wb_data <- read_csv("API_NY.GNP.PCAP.CD_DS2_en_csv_v2_115503.csv", skip = 4) %>% 
+  clean_names()
+
+itu_data <- read_excel("ITU_ICTPriceBaskets_2008-2025.xlsx", sheet = "economies_2008-2025") %>% 
+  clean_names()
+
+tax_raw <- read_csv("898e791e-0db3-4981-9334-b897a95aca0c_Data.csv", na = "..") %>% 
+  clean_names()
+
+infra_raw <- read_csv("fixed-broadband-subscriptions_1777496718795.csv") %>% 
+  clean_names()
+
+# 2. Clean Supplemental Data
+tax_clean <- tax_raw %>%
+  select(country_code, tax_rate_2019 = x2019_yr2019) %>%
+  drop_na(tax_rate_2019)
+
+infra_clean <- infra_raw %>%
+  filter(data_year == 2024) %>% 
+  select(entity_iso, subs_per_100 = data_value)
+
+# 3. Merge Datasets
+master_data_advanced <- itu_data %>%
+  left_join(wb_data, by = c("iso_code" = "country_code")) %>%
+  left_join(tax_clean, by = c("iso_code" = "country_code")) %>%
+  left_join(infra_clean, by = c("iso_code" = "entity_iso"))
+
+# 4. Theoretical Calculations
+clean_telecom_adv <- master_data_advanced %>%
+  filter(str_detect(basket_name, "Fixed-broadband"), unit == "USD") %>%
+  mutate(
+    monthly_price = as.numeric(x2024.x),
+    gni_per_capita = as.numeric(x2024.y),
+    tax_rate = as.numeric(tax_rate_2019),
+    subs_per_100 = as.numeric(subs_per_100)
+  ) %>%
+  drop_na(monthly_price, gni_per_capita) %>%
+  arrange(iso_code, monthly_price) %>%
+  distinct(iso_code, .keep_all = TRUE) %>%
+  mutate(
+    annual_cost = monthly_price * 12,
+    affordability_index = (annual_cost / gni_per_capita) * 100,
+    total_burden = affordability_index + tax_rate,
+    infra_efficiency = subs_per_100 / affordability_index,
+    market_model = case_when(
+      iso_code %in% c("CUB", "PRK", "CHN") ~ "State-Owned",
+      iso_code %in% c("USA", "GBR", "CHL") ~ "Privatized",
+      TRUE ~ "Hybrid" 
+    )
+  )
+
+# 5. Advanced Summary Table
+advanced_summary <- clean_telecom_adv %>%
+  group_by(market_model) %>%
+  summarize(
+    count = n(),
+    avg_affordability = mean(affordability_index, na.rm = TRUE),
+    avg_total_burden = mean(total_burden, na.rm = TRUE),
+    avg_infra_efficiency = mean(infra_efficiency, na.rm = TRUE)
+  ) %>%
+  arrange(avg_total_burden)
+
+print(advanced_summary)
+
+# 6. Google BigQuery Data Extraction
+project_id <- "telecom-thesis-project-2" 
+
+sql_query <- "
+  SELECT
+    EXTRACT(YEAR FROM date) AS test_year,
+    client.Geo.CountryCode AS iso_code,
+    APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(50)] AS median_speed_mbps
+  FROM
+    `measurement-lab.ndt.ndt7_union`
+  WHERE
+    date >= '2020-01-01' AND date <= '2024-12-31'
+    AND client.Geo.CountryCode IN ('US', 'GB', 'CL', 'CN')
+  GROUP BY
+    test_year, iso_code
+  ORDER BY
+    iso_code, test_year
+"
+
+historical_speeds <- bq_project_query(project_id, sql_query) %>%
+  bq_table_download()
+
+# 7. Innovation Velocity Calculation
+innovation_velocity_data <- historical_speeds %>%
+  group_by(iso_code) %>%
+  arrange(test_year) %>%
+  mutate(
+    yoy_growth_pct = (median_speed_mbps - lag(median_speed_mbps)) / lag(median_speed_mbps) * 100
+  ) %>%
+  filter(test_year == 2024) %>%
+  select(iso_code, final_speed = median_speed_mbps, innovation_velocity = yoy_growth_pct)
+
+print(innovation_velocity_data)
+
+# 8. Final Visualization
+plot_data <- innovation_velocity_data %>%
+  mutate(
+    model_label = case_when(
+      iso_code == "CN" ~ "State-Owned Benchmark (China)",
+      iso_code == "US" ~ "Privatized Model (USA)",
+      iso_code == "GB" ~ "Hybrid Model (UK)",
+      iso_code == "CL" ~ "Free-Market Benchmark (Chile)"
+    )
+  )
+
+ggplot(plot_data, aes(x = reorder(model_label, innovation_velocity), y = innovation_velocity, fill = iso_code)) +
+  geom_col(alpha = 0.85, width = 0.6) +
+  geom_text(aes(label = paste0(round(innovation_velocity, 1), "%")), 
+            hjust = -0.2, size = 5, fontface = "bold", color = "black") +
+  coord_flip() + 
+  scale_fill_manual(values = c("CN" = "#d73027", "US" = "#4575b4", "GB" = "#74add1", "CL" = "#fdae61")) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(color = "grey40", size = 12),
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(face = "bold")
+  ) +
+  labs(
+    title = "The Stagnation of Deregulation: Infrastructure Velocity",
+    subtitle = "Year-over-Year Broadband Speed Growth (2020-2024)",
+    x = NULL,
+    y = "Cumulative Innovation Velocity (%)",
+    caption = "Data Source: Measurement Lab (M-Lab) Telemetry via Google Cloud BigQuery"
+  ) +
+  expand_limits(y = 65) 
+
+ggsave("Innovation_Velocity_Chart.png", width = 10, height = 6, dpi = 300)
