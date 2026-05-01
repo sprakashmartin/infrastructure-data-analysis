@@ -61,3 +61,10 @@ To test this, a secondary parallel pipeline was constructed using World Bank Mob
 While this quantitative index definitively tracks physical infrastructure deployment, future iterations must account for two major qualitative externalities that shape telecommunications efficacy:
 1. **The Utility vs. Capability Paradox (Censorship):** The index measures absolute bandwidth (Stock/Flow) but omits informational utility. State-directed models with severe censorship apparatuses (e.g., China's Great Firewall) provide high-velocity infrastructure, but severely restrict global data access. Future models should integrate a "Network Freedom/Openness" penalty to calculate true socioeconomic utility. 
 2. **CapEx Debt Sustainability:** State-owned enterprises (SOEs) can deploy infrastructure at a loss, heavily subsidized by sovereign debt. Privatized models are constrained by market profitability. Assessing whether the State-Owned model's "Innovation Velocity" is a product of superior structural efficiency or an unsustainable debt bubble requires integrating corporate CapEx-to-Revenue ratios into the Affordability metric.
+
+### Theoretical Context
+This empirical data pipeline serves as the quantitative foundation for my various manuscripts on political economy and decentralized market critiques. 
+
+While this repository measures the physical constraints and deployment velocities of contemporary economic models, the manuscripts address the theoretical externalities. Specifically, the manuscripts explore how a future cyber-socialist model utilizing labor-value calculations circumvents the capital-expenditure debt traps inherent to both current privatized and state-capitalist systems, and outlines the theoretical separation of state-owned infrastructure from authoritarian information control. 
+
+*(Excerpt or link to manuscript provided upon request or attached in application portfolio).*
