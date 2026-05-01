@@ -56,3 +56,8 @@ To test this, a secondary parallel pipeline was constructed using World Bank Mob
 | **4** | State-Owned Benchmark | CHN | **-0.0572** | 0.881 | -1.470 |
 
 *Note: The Cumulative Mobile Z-Score also factors in the baseline Network Speed (Stock) and Innovation Velocity (Flow) metrics utilized in the fixed-line index.*
+
+### Future Research & Qualitative Boundaries
+While this quantitative index definitively tracks physical infrastructure deployment, future iterations must account for two major qualitative externalities that shape telecommunications efficacy:
+1. **The Utility vs. Capability Paradox (Censorship):** The index measures absolute bandwidth (Stock/Flow) but omits informational utility. State-directed models with severe censorship apparatuses (e.g., China's Great Firewall) provide high-velocity infrastructure, but severely restrict global data access. Future models should integrate a "Network Freedom/Openness" penalty to calculate true socioeconomic utility. 
+2. **CapEx Debt Sustainability:** State-owned enterprises (SOEs) can deploy infrastructure at a loss, heavily subsidized by sovereign debt. Privatized models are constrained by market profitability. Assessing whether the State-Owned model's "Innovation Velocity" is a product of superior structural efficiency or an unsustainable debt bubble requires integrating corporate CapEx-to-Revenue ratios into the Affordability metric.
