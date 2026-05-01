@@ -102,7 +102,6 @@ innovation_velocity_data <- historical_speeds %>%
 
 print(innovation_velocity_data)
 
-# 8. Final Visualization
 plot_data <- innovation_velocity_data %>%
   mutate(
     model_label = case_when(
@@ -112,6 +111,7 @@ plot_data <- innovation_velocity_data %>%
       iso_code == "CL" ~ "Free-Market Benchmark (Chile)"
     )
   )
+
 
 ggplot(plot_data, aes(x = reorder(model_label, innovation_velocity), y = innovation_velocity, fill = iso_code)) +
   geom_col(alpha = 0.85, width = 0.6) +
@@ -127,8 +127,9 @@ ggplot(plot_data, aes(x = reorder(model_label, innovation_velocity), y = innovat
     panel.grid.major.y = element_blank(),
     axis.text.y = element_text(face = "bold")
   ) +
+
   labs(
-    title = "The Stagnation of Deregulation: Infrastructure Velocity",
+    title = "Comparative Infrastructure Velocity by Economic Model",
     subtitle = "Year-over-Year Broadband Speed Growth (2020-2024)",
     x = NULL,
     y = "Cumulative Innovation Velocity (%)",
