@@ -9,6 +9,11 @@ To test the theoretical claims of anarcho-capitalism against state-directed econ
 2. **ITU Global ICT Pricing:** To establish baseline fixed-broadband affordability.
 3. **Google M-Lab Telemetry (via BigQuery):** Extracting median download speeds from millions of crowdsourced network diagnostic tests (2020-2024).
 
+### Benchmark Definitions & Regulatory Nuance
+While this model utilizes categorical benchmarks ("Privatized" vs. "State-Owned") for macro-statistical analysis, the underlying regulatory realities are highly nuanced, demonstrating the limits of ideological absolutes in infrastructure deployment:
+* **The "Free-Market" Mandates (Chile):** While highly privatized, the Chilean state aggressively intervenes to correct market failures. Private 5G spectrum auctions were legally tethered to "Social Mandates," forcing operators to wire unprofitable rural localities. Furthermore, Chile imposes strict net neutrality and number portability laws to prevent monopoly abuse. 
+* **The "State-Owned" Retail Tier (China):** While the physical infrastructure (fiber, towers) is an absolute monopoly owned by state-controlled entities (SASAC), the state permits private Mobile Virtual Network Operators (MVNOs) to lease bandwidth and operate at the retail and consumer-facing margins.
+
 ### Key Findings
 The data challenges the assumption that deregulated private capital maximizes technological innovation. When factoring in total economic burden and calculating the Year-over-Year (YoY) "Innovation Velocity," the free-market benchmark demonstrated significant stagnation compared to the state-directed model.
 
