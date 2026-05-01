@@ -318,3 +318,71 @@ composite_index <- cumulative_index_data %>%
   select(iso_code, cumulative_z_score, z_speed, z_innovation, z_access, z_affordability)
 
 print(composite_index)
+
+# --- THE MOBILE LEAPFROG PIPELINE ---
+
+# 1. Load the new World Bank Mobile Subscriptions Data
+# (Make sure to replace the filename below with the actual name of the file you just downloaded)
+mobile_infra_raw <- read_csv("API_IT.CEL.SETS.P2_DS2_en_csv_v2_1205.csv", skip = 4) %>% 
+  clean_names()
+
+mobile_infra_clean <- mobile_infra_raw %>%
+  # Using 2023 or 2024, whichever is the most recent populated year in this dataset
+  select(country_code, mobile_subs_per_100 = x2023) %>% 
+  drop_na(mobile_subs_per_100)
+
+# 2. Filter the ITU Data for Mobile Pricing
+mobile_master_data <- itu_data %>%
+  # THE FLIP: We switch from Fixed-broadband to Data-only mobile
+  filter(str_detect(basket_name, "Data-only mobile broadband")) %>%
+  filter(unit == "USD") %>%
+  left_join(wb_data, by = c("iso_code" = "country_code")) %>%
+  left_join(tax_clean, by = c("iso_code" = "country_code")) %>%
+  left_join(mobile_infra_clean, by = c("iso_code" = "country_code")) %>%
+  left_join(density_clean, by = c("iso_code" = "country_code"))
+
+# 3. Calculate Mobile Density-Adjusted Efficiency
+mobile_clean_adv <- mobile_master_data %>%
+  mutate(
+    monthly_price = as.numeric(x2024.x),
+    gni_per_capita = as.numeric(x2024.y),
+    tax_rate = as.numeric(tax_rate_2019),
+    mobile_subs_per_100 = as.numeric(mobile_subs_per_100),
+    population_density = as.numeric(population_density)
+  ) %>%
+  drop_na(monthly_price, gni_per_capita, population_density, mobile_subs_per_100) %>%
+  arrange(iso_code, monthly_price) %>%
+  # Grabbing the absolute cheapest mobile data plan for each country
+  distinct(iso_code, .keep_all = TRUE) %>%
+  mutate(
+    annual_cost = monthly_price * 12,
+    mobile_affordability_index = (annual_cost / gni_per_capita) * 100,
+    mobile_total_burden = mobile_affordability_index + tax_rate,
+    
+    mobile_infra_efficiency = mobile_subs_per_100 / mobile_affordability_index,
+    mobile_density_adjusted_efficiency = mobile_infra_efficiency / log(population_density)
+  )
+
+# 4. Re-calculate the Z-Score Index for Mobile Networks
+mobile_composite_index <- mobile_clean_adv %>%
+  filter(iso_code %in% c("USA", "GBR", "CHL", "CHN")) %>%
+  mutate(google_iso = case_when(
+    iso_code == "USA" ~ "US",
+    iso_code == "GBR" ~ "GB",
+    iso_code == "CHL" ~ "CL",
+    iso_code == "CHN" ~ "CN"
+  )) %>%
+  # We reuse the Google M-Lab speed data here as a generalized proxy for network capability
+  left_join(innovation_velocity_data, by = c("google_iso" = "iso_code")) %>%
+  mutate(
+    z_speed = (final_speed - mean(final_speed, na.rm=TRUE)) / sd(final_speed, na.rm=TRUE),
+    z_innovation = (innovation_velocity - mean(innovation_velocity, na.rm=TRUE)) / sd(innovation_velocity, na.rm=TRUE),
+    z_mobile_access = (mobile_density_adjusted_efficiency - mean(mobile_density_adjusted_efficiency, na.rm=TRUE)) / sd(mobile_density_adjusted_efficiency, na.rm=TRUE),
+    z_mobile_affordability = ((mobile_total_burden - mean(mobile_total_burden, na.rm=TRUE)) / sd(mobile_total_burden, na.rm=TRUE)) * -1,
+    
+    mobile_cumulative_z_score = (z_speed + z_innovation + z_mobile_access + z_mobile_affordability) / 4
+  ) %>%
+  arrange(desc(mobile_cumulative_z_score)) %>%
+  select(iso_code, mobile_cumulative_z_score, z_mobile_access, z_mobile_affordability)
+
+print(mobile_composite_index)
