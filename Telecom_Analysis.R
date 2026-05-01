@@ -223,3 +223,98 @@ composite_index <- cumulative_index_data %>%
 
 # Print the final index
 print(composite_index)
+
+# 8. Clean the Supplemental Data (Now including Density)
+tax_clean <- tax_raw %>%
+  select(country_code, tax_rate_2019 = x2019_yr2019) %>%
+  drop_na(tax_rate_2019)
+
+infra_clean <- infra_raw %>%
+  filter(data_year == 2024) %>% 
+  select(entity_iso, subs_per_100 = data_value)
+
+# Load and clean the new density file you downloaded
+density_raw <- read_csv("API_EN.POP.DNST_DS2_en_csv_v2_1453.csv", skip = 4) %>% 
+  clean_names()
+
+density_clean <- density_raw %>%
+  # Using 2021 as it is typically the most recent finalized density year in WB data
+  select(country_code, population_density = x2021) %>%
+  drop_na(population_density)
+
+# 9. The Corrected Multi-Stage Join (Adding Density)
+master_data_advanced <- master_data %>%
+  left_join(tax_clean, by = c("iso_code" = "country_code")) %>%
+  left_join(infra_clean, by = c("iso_code" = "entity_iso")) %>%
+  left_join(density_clean, by = c("iso_code" = "country_code"))
+
+# 10. The Final Theoretical Calculations (With Density Control)
+clean_telecom_adv <- master_data_advanced %>%
+  filter(str_detect(basket_name, "Fixed-broadband")) %>%
+  filter(unit == "USD") %>%
+  mutate(
+    monthly_price = as.numeric(x2024.x),
+    gni_per_capita = as.numeric(x2024.y),
+    tax_rate = as.numeric(tax_rate_2019),
+    subs_per_100 = as.numeric(subs_per_100),
+    population_density = as.numeric(population_density)
+  ) %>%
+  drop_na(monthly_price, gni_per_capita, population_density) %>%
+  arrange(iso_code, monthly_price) %>%
+  distinct(iso_code, .keep_all = TRUE) %>%
+  mutate(
+    annual_cost = monthly_price * 12,
+    affordability_index = (annual_cost / gni_per_capita) * 100,
+    
+    total_burden = affordability_index + tax_rate,
+    
+    # We calculate raw efficiency first
+    infra_efficiency = subs_per_100 / affordability_index,
+    
+    # THE NEW CONTROL: We divide by the log of density to isolate the geographic advantage
+    density_adjusted_efficiency = infra_efficiency / log(population_density),
+    
+    market_model = case_when(
+      iso_code %in% c("CUB", "PRK", "CHN") ~ "State-Owned",
+      iso_code %in% c("USA", "GBR", "CHL") ~ "Privatized",
+      TRUE ~ "Hybrid" 
+    )
+  )
+
+# 11. Re-build the Cumulative Index Dataset (Now with Density!)
+cumulative_index_data <- clean_telecom_adv %>%
+  filter(iso_code %in% c("USA", "GBR", "CHL", "CHN")) %>%
+  mutate(google_iso = case_when(
+    iso_code == "USA" ~ "US",
+    iso_code == "GBR" ~ "GB",
+    iso_code == "CHL" ~ "CL",
+    iso_code == "CHN" ~ "CN"
+  )) %>%
+  left_join(innovation_velocity_data, by = c("google_iso" = "iso_code")) %>%
+  left_join(accessibility_trends, by = c("iso_code" = "entity_iso")) %>%
+  select(
+    iso_code, market_model,
+    current_speed = final_speed, speed_growth = innovation_velocity,
+    current_access, access_growth = access_growth_pct,
+    total_burden,
+    density_adjusted_efficiency # <--- We brought the new control variable in!
+  )
+
+# 12. The Z-Score Standardized Success Index
+composite_index <- cumulative_index_data %>%
+  mutate(
+    # Z-Score = (Value - Mean) / Standard Deviation
+    z_speed = (current_speed - mean(current_speed)) / sd(current_speed),
+    z_innovation = (speed_growth - mean(speed_growth)) / sd(speed_growth),
+    z_access = (density_adjusted_efficiency - mean(density_adjusted_efficiency)) / sd(density_adjusted_efficiency),
+    
+    # For burden, lower is better, so we invert the Z-score by multiplying by -1
+    z_affordability = ((total_burden - mean(total_burden)) / sd(total_burden)) * -1,
+    
+    # Calculate the Cumulative Z-Score
+    cumulative_z_score = (z_speed + z_innovation + z_access + z_affordability) / 4
+  ) %>%
+  arrange(desc(cumulative_z_score)) %>%
+  select(iso_code, cumulative_z_score, z_speed, z_innovation, z_access, z_affordability)
+
+print(composite_index)
