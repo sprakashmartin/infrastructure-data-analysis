@@ -17,7 +17,7 @@ While this model utilizes categorical benchmarks ("Privatized" vs. "State-Owned"
 ### Key Findings
 The data challenges the assumption that deregulated private capital maximizes technological innovation. When factoring in total economic burden and calculating the Year-over-Year (YoY) "Innovation Velocity," the free-market benchmark demonstrated significant stagnation compared to the state-directed model.
 
-<img width="3000" height="1800" alt="Innovation_Velocity_Chart" src="https://github.com/user-attachments/assets/b053787a-4b41-4373-b07f-ca362bb1689d" />
+<img width="3000" height="1800" alt="Innovation_Velocity_Chart" src="https://github.com/user-attachments/assets/4f557558-3dac-4793-872e-0d767b586027" />
 
 ### The Code
 The full data pipeline, including the SQL query used to extract historical data from Google BigQuery, is available in the `Telecom_Analysis.R` script in this repository.
